@@ -16,12 +16,6 @@ DISPLAY_REWARD_THRESHOLD = 2800
 RENDER = False  # rendering wastes time
 env = Chess_Go(board_size = 21)
 
-#env = env.unwrapped
-
-#print(env.action_space)
-#print(env.observation_space)
-#print(env.observation_space.high)
-#print(env.observation_space.low)
 
 RL = PolicyGradient()
 #RL = PolicyGradient(
