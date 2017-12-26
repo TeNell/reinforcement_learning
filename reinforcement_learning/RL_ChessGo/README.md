@@ -1,4 +1,4 @@
-![alt text](/cover_image.png "Title")
+![alt text](cover_image.png "Title")
 
 
 
