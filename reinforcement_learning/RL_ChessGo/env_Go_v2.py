@@ -3,7 +3,7 @@
 Enviroment of Chess_Go
 
 Author. Nell (dongboxiang.nell@gmail.com)
-Homepage. https://github.com/TeNell 
+Repos. https://github.com/TeNell 
 
 """
 
@@ -16,7 +16,6 @@ import matplotlib.pyplot as plt
 class Chess_Go:
     def __init__(self, board_size):
         self.board_size = board_size
-        #self._build()
         
     def _build(self):
         # draw graph
@@ -166,8 +165,6 @@ class Chess_Go:
                 
         done = points_new==self.points_xy
         self.points_xy = points_new
-
-        #print('done:',done)
         
         count_list = self.area_calculator(self.point_map.copy())
         
@@ -178,8 +175,7 @@ class Chess_Go:
         observation = [self.point_map]
         
         #from IPython import embed;embed()
-        # 看 MountainCar 的 reward 规律
-        reward = float(count_list[4])
+        reward = float(count_list[4])/441
         
         if done: plt.cla()
         
@@ -200,8 +196,7 @@ if __name__ == "__main__":
     env.reset()
     for i in range(500):
         env.render()
-        #action = random.randint(1,8)
-        action = 1
+        action = random.randint(1,8)
         _,_,done=env.step(action)
         if done:break
     print('End.')
