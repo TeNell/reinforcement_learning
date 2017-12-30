@@ -1,1 +1,1 @@
-use simple struct, show essential mind.
+use simple code, show essential mind.
