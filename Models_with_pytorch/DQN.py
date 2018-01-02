@@ -43,7 +43,6 @@ class DQN:
 
     def choose_action(self, x):
         x = Variable(torch.unsqueeze(torch.FloatTensor(x), 0))
-
         if np.random.uniform() < 0.9:
             actions_value = self.eval_net.forward(x)
             action = torch.max(actions_value, 1)[1].data.numpy()[0]
@@ -77,8 +76,10 @@ class DQN:
         batch_observation_ = Variable(torch.FloatTensor(np.array(self.storage['observation_'])[idx]))
         
         q_eval = self.eval_net(batch_observation).gather(1, batch_action.unsqueeze(1))
+        
         q_next = self.target_net(batch_observation_).detach()
         q_target = (batch_reward + 0.9 * q_next.max(1)[0]).unsqueeze(1)
+        
         loss = self.loss_func(q_eval, q_target)
 
         self.optimizer.zero_grad()
