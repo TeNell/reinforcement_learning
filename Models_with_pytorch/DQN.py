@@ -11,8 +11,6 @@ from torch.autograd import Variable
 import gym
 import numpy as np
 
-
-MEMORY_CAPACITY = 500
 env = gym.make('CartPole-v0')
 env = env.unwrapped
 
@@ -30,13 +28,16 @@ class Net(nn.Module):
         x = self.fc2(x)
         return x
     
-class DQN(object):
+class DQN:
     def __init__(self):
         self.eval_net, self.target_net = Net(), Net()
-
-        self.learn_step_counter = 0
-        self.memory_counter = 0
-        self.memory = np.zeros((MEMORY_CAPACITY, 4 * 2 + 2))     
+        self.exchange_netparams_iter = 0
+        self.storage_limit = 200
+        self.batch_size = 128
+        self.storage_full = False
+               
+        self.storage = {'observation':[],'action':[],'reward':[],'observation_':[]}
+        
         self.optimizer = torch.optim.Adam(self.eval_net.parameters(), lr=0.01)
         self.loss_func = nn.MSELoss()
 
@@ -50,28 +51,34 @@ class DQN(object):
             action = np.random.randint(0, 2)
         return action
 
-    def store_transition(self, s, a, r, s_):
-        transition = np.hstack((s, [a, r], s_))
-        index = self.memory_counter % MEMORY_CAPACITY
-        self.memory[index, :] = transition
-        self.memory_counter += 1
+    def store_states(self, observation, action, reward, observation_):
+       
+        self.storage['observation'].append(observation)
+        self.storage['action'].append(action)
+        self.storage['reward'].append(reward)
+        self.storage['observation_'].append(observation_)
+        
+        if len(self.storage['observation']) > self.storage_limit:
+            self.storage_full = True
+            self.storage['observation'].pop(0)
+            self.storage['action'].pop(0)
+            self.storage['reward'].pop(0)
+            self.storage['observation_'].pop(0)
 
     def learn(self):
-        if self.learn_step_counter % 100 == 0:
+        if self.exchange_netparams_iter % 100 == 0:
             self.target_net.load_state_dict(self.eval_net.state_dict())
-        self.learn_step_counter += 1
+        self.exchange_netparams_iter += 1
 
-        sample_index = np.random.choice(MEMORY_CAPACITY, 128)
-        b_memory = self.memory[sample_index, :]
-        b_s = Variable(torch.FloatTensor(b_memory[:, :4]))
-        b_a = Variable(torch.LongTensor(b_memory[:, 4:4+1].astype(int)))
-        b_r = Variable(torch.FloatTensor(b_memory[:, 4+1:4+2]))
-        b_s_ = Variable(torch.FloatTensor(b_memory[:, -4:]))
+        idx = np.random.choice(self.storage_limit, self.batch_size)
+        batch_observation = Variable(torch.FloatTensor(np.array(self.storage['observation'])[idx]))
+        batch_action = Variable(torch.LongTensor(np.array(self.storage['action'])[idx]))
+        batch_reward = Variable(torch.FloatTensor(np.array(self.storage['reward'])[idx]))
+        batch_observation_ = Variable(torch.FloatTensor(np.array(self.storage['observation_'])[idx]))
         
-        #from IPython import embed;embed()
-        q_eval = self.eval_net(b_s).gather(1, b_a)
-        q_next = self.target_net(b_s_).detach()
-        q_target = b_r + 0.9 * q_next.max(1)[0].view(128, 1)
+        q_eval = self.eval_net(batch_observation).gather(1, batch_action.unsqueeze(1))
+        q_next = self.target_net(batch_observation_).detach()
+        q_target = (batch_reward + 0.9 * q_next.max(1)[0]).unsqueeze(1)
         loss = self.loss_func(q_eval, q_target)
 
         self.optimizer.zero_grad()
@@ -80,22 +87,32 @@ class DQN(object):
 
 dqn = DQN()
 
-for i_episode in range(10000):
+step = 1
+while True:
     observation = env.reset()
-    ep_r = 0
+    rewards = 0
     while True:
         env.render()
         action = dqn.choose_action(observation)
-
         observation_, reward, done, info = env.step(action)
-
-        dqn.store_transition(observation, action, reward, observation_)
-
-        ep_r += reward
-        if dqn.memory_counter > MEMORY_CAPACITY:
+        
+        x, x_dot, theta, theta_dot = observation_
+        r1 = (env.x_threshold - abs(x)) / env.x_threshold - 0.8
+        r2 = (env.theta_threshold_radians - abs(theta)) / env.theta_threshold_radians - 0.5
+        reward = r1 + r2
+        
+        dqn.store_states(observation, action, reward, observation_)
+        rewards += reward
+        
+        if dqn.storage_full:
             dqn.learn()
-            if done: print('Ep: ', i_episode, '| Ep_r: ', round(ep_r, 2))
+            if done: print('step:{0:<5d}rewards:{1:<1.3f}'.format(step, rewards)); step += 1
 
-        if done:
-            break
+        if done: break
         observation = observation_
+        
+
+        
+        
+        
+        
